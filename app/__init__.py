@@ -1,32 +1,47 @@
 from flask import Flask
-
-print( __name__)
+from config import Config
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 
 # this app is a variable
 app = Flask(__name__)
+app.config.from_object(Config)
+
+db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 
 # this app is a package (file w init.oy)
-from app import routes 
+from app import routes, models 
 
 
-'''wild. okay. so, app is this whole directory.
-in the context of the import statement.
+''' from the top:
+flask runs microblog.pu bc of $FLASK_APP
 
-from app <-- that's this folder. 
+this accesses "app", which is a python package
+(has an init.py, which effectively IS the module
 
-so we're saying, looking in all the files from this folder, and find the routes module(py file really)
+that's this guy!
 
-this is that circular import thing.
+here's the thing. routes and models need a 
+lot of stuff - an actual flask app, a db connection
+configuration
 
-the whole thing is kicked of by microblog.py
+so.
 
-I think when it imports app as a package, python fires
-__init__.py
+in our init.py for the app package
 
-this, in turn, creates a flask app object and imports routes
+we create a Flask() object, which
+we confusingly also label "app"
 
-the confusing thing: routes imports the app object from 
-the app directory (which was an awful teaching move)
+The diff - the flask object is a real 
+python object, the package app is just a module
 
-i think it does this because of module type behavior 
-- each has their own scope'''
+so there exists an app.app
+
+we also make a db connection
+
+and now, when it's time to kick off routes and models
+we have the flask object (app) that they need,
+and the database
+
+'''

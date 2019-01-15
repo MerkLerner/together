@@ -4,3 +4,7 @@ fuckiiiiiin
 flask
 
 python-dotenv
+
+flask-SQLAlchemy
+
+flask-migrate
