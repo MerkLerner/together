@@ -20,7 +20,7 @@ def index():
 			'body': "buttsss"
 		}
 	]
-
+	
 	return render_template('index.html', title="Home Page", posts=posts)
 
 @app.route('/login',methods=['GET','POST'])
@@ -77,6 +77,5 @@ def user(username):
 		{'author':user, 'body': 'test post #2'}
 	]
 
-	print(current_user)
 
-	return render_template('user.html', posts=posts,user=user)
+	return render_template('user.html', posts=posts, user=user)
