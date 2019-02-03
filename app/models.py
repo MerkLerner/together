@@ -17,6 +17,11 @@ class User(UserMixin, db.Model):
 	last_seen = db.Column(db.DateTime, default=datetime.utcnow()) 
 	posts = db.relationship("Post", backref='author', lazy='dynamic')
 
+	followed = db.relationship(
+	 	'User', secondary=followers,
+	 	primaryjoin=(followers.c.follower_id == id),
+	 	secondaryjoin=(followers.c.followed_id ==id),
+	 	backref=db.backref('followers', lazy='dynamic'), lazy='dynamic')
 
 	def set_password(self, password):
 		self.password_hash = generate_password_hash(password)
@@ -30,6 +35,13 @@ class User(UserMixin, db.Model):
 
 	def __repr__(self):
 		return '<User {}>'.format(self.username)
+
+# super interesting - specifically not creating a model
+
+followers = db.Table('followers',
+	db.Column('follower_id', db.Integer, db.ForeignKey('user.id')),
+	db.Column('followed_id', db.Integer, db.ForeignKey('user.id'))
+	)
 
 class Post(db.Model):
 	id = db.Column(db.Integer, primary_key=True)

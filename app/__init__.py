@@ -3,6 +3,9 @@ from config import Config
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
+import logging
+from logging.handlers import SMTPHandler, RotatingFileHandler
+import os
 
 # this app is a variable
 app = Flask(__name__)
@@ -13,40 +16,34 @@ migrate = Migrate(app, db)
 
 login = LoginManager(app)
 login.login_view = 'login'
-#kenny login hue hue hue hue hue
+# kenny login hue hue hue hue hue
 
 # this app is a package (file w init.oy)
-from app import routes, models 
+from app import routes, models, errors 
+
+if not app.debug:
+	if app.config['MAIL_SERVER']:
+		auth = None
+		if app.config['MAIL_USERNAME'] or app.config['MAIL_PASSWORD']:
+			auth = (app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
+		secure = None
+		if app.config['MAIL_USE_TLS']:
+			secure = ()
+		mail_handler = SMTPHandler(
+			mailhost=(app.config['MAIL_SERVER'], app.config['MAIL_PORT']),
+			fromaddr='no-reply@' + app.config['MAIL_SERVER'],
+			toaddrs=app.config['ADMINS'], subject='Microblog Failure',
+			credentials=auth, secure=secure)
+		mail_handler.setLevel(logging.ERROR)
+		app.logger.addHandler(mail_handler)
+
+	if not os.path.exists('logs'):
+		os.mkdir('logs')
+	file_handler = RotatingFileHandler('logs/microblog.log', maxBytes=10240,backupCount=10)
+	file_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]"))
+	file_handler.setLevel(logging.INFO)
+	app.logger.setLevel(logging.INFO)
+	app.logger.info('Microblog startup')
 
 
-''' from the top:
-flask runs microblog.pu bc of $FLASK_APP
 
-this accesses "app", which is a python package
-(has an init.py, which effectively IS the module
-
-that's this guy!
-
-here's the thing. routes and models need a 
-lot of stuff - an actual flask app, a db connection
-configuration
-
-so.
-
-in our init.py for the app package
-
-we create a Flask() object, which
-we confusingly also label "app"
-
-The diff - the flask object is a real 
-python object, the package app is just a module
-
-so there exists an app.app
-
-we also make a db connection
-
-and now, when it's time to kick off routes and models
-we have the flask object (app) that they need,
-and the database
-
-'''

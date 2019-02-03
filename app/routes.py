@@ -1,10 +1,10 @@
 from app import app, db
-from app.models import User
 from app.forms import LoginForm, RegistrationForm, EditProfileForm
+from app.models import User
+from datetime import datetime
 from flask import render_template, flash, redirect, url_for, request
 from flask_login import current_user, login_user, logout_user, login_required
 from werkzeug.urls import url_parse
-from datetime import datetime
 
 
 @app.before_request
@@ -88,9 +88,10 @@ def user(username):
 
 	return render_template('user.html', posts=posts, user=user)
 
+#should have a login required decorator here
 @app.route('/edit_profile', methods=['GET', 'POST'])
 def edit_profile():
-	form = EditProfileForm()
+	form = EditProfileForm(current_user.username)
 	if form.validate_on_submit():
 		current_user.username = form.username.data
 		current_user.about_me = form.about_me.data
@@ -103,3 +104,4 @@ def edit_profile():
 		form.about_me.data = current_user.about_me 
 
 	return render_template('edit_profile.html', title="Edit Profile", form=form)
+
