@@ -28,8 +28,15 @@ class User(UserMixin, db.Model):
 	followed = db.relationship(
 	 	'User', secondary=followers,
 	 	primaryjoin=(followers.c.follower_id == id),
-	 	secondaryjoin=(followers.c.followed_id ==id),
+	 	secondaryjoin=(followers.c.followed_id == id),
 	 	backref=db.backref('followers', lazy='dynamic'), lazy='dynamic')
+
+	def followed_posts(self):
+		followed = Post.query.join(
+			followers, (followers.c.followed_id == Post.user_id)).filter(
+				followers.c.follower_id == self.id)
+		own = Post.query.filter_by(user_id=self.id)
+		return followed.union(own).order_by(Post.timestamp.desc())
 
 	def follow(self, user):
 		if not self.is_following(user):
@@ -40,6 +47,7 @@ class User(UserMixin, db.Model):
 			self.followed.remove(user)
 
 	def is_following(self,user):
+		print(type(followers.c))
 		return self.followed.filter(
 			followers.c.followed_id == user.id).count() > 0 
 
