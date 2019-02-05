@@ -88,6 +88,11 @@ def user(username):
 
 	return render_template('user.html', posts=posts, user=user)
 
+@app.route('/all_users')
+def all_users():
+	users = User.query.all()
+	return render_template('all_users.html', users=users)
+
 #should have a login required decorator here
 @app.route('/edit_profile', methods=['GET', 'POST'])
 def edit_profile():
