@@ -1,6 +1,6 @@
 from app import app, db
-from app.forms import LoginForm, RegistrationForm, EditProfileForm
-from app.models import User
+from app.forms import PostForm, LoginForm, RegistrationForm, EditProfileForm
+from app.models import User, Post
 from datetime import datetime
 from flask import render_template, flash, redirect, url_for, request
 from flask_login import current_user, login_user, logout_user, login_required
@@ -13,23 +13,26 @@ def before_request():
 		current_user.last_seen = datetime.utcnow()
 		db.session.commit()
 
-@app.route('/')
-@app.route('/index')
+@app.route('/', methods=['GET', 'POST'])
+@app.route('/index', methods=['GET', 'POST'])
 @login_required
 def index():
-	user = {'username': 'miguel'}
-	posts = [
-		{
-			'author': {'username':'John'},
-			'body': "Beautiful day in portland"
-		},
-		{
-			'author': {'username':'John'},
-			'body': "buttsss"
-		}
-	]
+	form = PostForm()
+	if form.validate_on_submit():
+		post = Post(body=form.post.data, author=current_user)
+		db.session.add(post)
+		db.session.commit()
+		flash('your post is now live')
+		return redirect(url_for('index'))
+	page = request.args.get('page', 1, type=int)
+	posts = current_user.followed_posts().paginate(
+		page, app.config['POSTS_PER_PAGE'], False)
+	next_url = url_for('index', page=posts.next_num) \
+		if posts.has_next else None
+	prev_url = url_for('index', page=posts.prev_num) \
+		if posts.has_prev else None
 	
-	return render_template('index.html', title="Home Page", posts=posts)
+	return render_template('index.html', title="Home Page", form=form, posts=posts.items, next_url=next_url, prev_url=prev_url)
 
 @app.route('/login',methods=['GET','POST'])
 def login():
@@ -80,20 +83,36 @@ def register():
 @login_required
 def user(username):
 	user = User.query.filter_by(username=username).first_or_404()
-	posts = [
-		{'author':user, 'body': 'test post #1'},
-		{'author':user, 'body': 'test post #2'}
-	]
+	page = request.args.get('page', 1, type=int)
+	posts = user.posts.order_by(Post.timestamp.desc()).paginate(
+		page, app.config['POSTS_PER_PAGE'], False)
 
+	next_url = url_for('user', username=user.username, page=posts.next_num) \
+		if posts.has_next else None
+	prev_url = url_for('user', username=user.username, page=posts.prev_num) \
+		if posts.has_prev else None
 
-	return render_template('user.html', posts=posts, user=user)
+	return render_template('user.html', posts=posts, user=user, next_url=next_url, prev_url=prev_url)
 
 @app.route('/all_users')
+@login_required
 def all_users():
 	users = User.query.all()
 	return render_template('all_users.html', users=users)
 
-#should have a login required decorator here
+@app.route('/explore')
+@login_required
+def explore():
+	page = request.args.get('page', 1, type=int)
+	posts = Post.query.order_by(Post.timestamp.desc()).paginate(
+		page, app.config['POSTS_PER_PAGE'], False)
+	next_url = url_for('explore', page=posts.next_num) \
+		if posts.has_next else None
+	prev_url = url_for('explore', page=posts.prev_num) \
+		if posts.has_prev else None
+	return render_template('index.html', title='Explore', posts=posts.items,
+		next_url=next_url, prev_url=prev_url)
+
 @app.route('/edit_profile', methods=['GET', 'POST'])
 def edit_profile():
 	form = EditProfileForm(current_user.username)
@@ -110,3 +129,42 @@ def edit_profile():
 
 	return render_template('edit_profile.html', title="Edit Profile", form=form)
 
+@app.route('/follow/<username>')
+@login_required
+def follow(username):
+	user = User.query.filter_by(username=username).first()
+
+	if user is None:
+		flash('User {} is not found.'.format(username))
+		return redirect(url_for('index'))
+
+	if user == current_user:
+		flash('You cannot unfollow yourself!')
+		return redirect(url_for('user', username=username))
+
+	current_user.follow(user)
+	db.session.commit()
+	flash('You are following {}'.format(username))
+
+	return redirect(url_for('user', username=username))
+
+@app.route('/unfollow/<username>')
+@login_required
+def unfollow(username):
+	user = User.query.filter_by(username=username).first()
+
+	if user is None:
+		flash(f'User {username} not found.')
+		return redirect(url_for('index'))
+	
+	if user == current_user:
+		flash('You cannot unfollow yourself')
+		return redirect(url_for('index'))
+	
+	current_user_user.unfollow(user)
+	db.session.commit()
+	flash(f'You are not following {username}.')
+	
+	return redirect(url_for('user', username=username))	
+
+	
