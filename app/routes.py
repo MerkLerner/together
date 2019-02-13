@@ -1,5 +1,6 @@
 from app import app, db
-from app.forms import PostForm, LoginForm, RegistrationForm, EditProfileForm
+from app.mail import send_password_reset_email
+from app.forms import EditProfileForm, LoginForm, PostForm, RegistrationForm, ResetPasswordRequestForm
 from app.models import User, Post
 from datetime import datetime
 from flask import render_template, flash, redirect, url_for, request
@@ -65,7 +66,6 @@ def logout():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-	print( current_user.is_authenticated )
 	if current_user.is_authenticated:
 		return redirect(url_for('index'))
 	form = RegistrationForm() 
@@ -92,8 +92,9 @@ def user(username):
 	prev_url = url_for('user', username=user.username, page=posts.prev_num) \
 		if posts.has_prev else None
 
-	return render_template('user.html', posts=posts, user=user, next_url=next_url, prev_url=prev_url)
+	return render_template('user.html', posts=posts.items, user=user, next_url=next_url, prev_url=prev_url)
 
+print('remove all users route when you move to production')
 @app.route('/all_users')
 @login_required
 def all_users():
@@ -161,10 +162,24 @@ def unfollow(username):
 		flash('You cannot unfollow yourself')
 		return redirect(url_for('index'))
 	
-	current_user_user.unfollow(user)
+	current_user.unfollow(user)
 	db.session.commit()
 	flash(f'You are not following {username}.')
 	
 	return redirect(url_for('user', username=username))	
 
-	
+@app.route('/reset_password_request')
+def reset_password_request():
+	if current_user.is_authenticated:
+		redirect(url_for('index'))
+	form = ResetPasswordRequestForm()
+
+	if form.validate_on_submit():
+		user = User.query.filter_by(email=form.email.data).first()
+		if user:
+			send_password_reset_email(user)
+
+		flash('Check yr email beb')
+		return redirect(url_for('login'))
+
+	return render_template('reset_password_request.html', title='Reset Password', form=form)

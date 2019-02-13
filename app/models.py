@@ -1,8 +1,10 @@
-from werkzeug.security import generate_password_hash, check_password_hash
+from app import app, db, login
 from datetime import datetime
-from app import db, login
 from flask_login import UserMixin
 from hashlib import md5
+import jwt
+from time import time
+from werkzeug.security import generate_password_hash, check_password_hash
 
 @login.user_loader
 def load_user(id):
@@ -24,6 +26,9 @@ class User(UserMixin, db.Model):
 	about_me  = db.Column(db.String(140))
 	last_seen = db.Column(db.DateTime, default=datetime.utcnow()) 
 	posts = db.relationship("Post", backref='author', lazy='dynamic')
+
+	def __repr__(self):
+		return '<User {}>'.format(self.username)
 
 	followed = db.relationship(
 	 	'User', secondary=followers,
@@ -47,7 +52,6 @@ class User(UserMixin, db.Model):
 			self.followed.remove(user)
 
 	def is_following(self,user):
-		print(type(followers.c))
 		return self.followed.filter(
 			followers.c.followed_id == user.id).count() > 0 
 
@@ -61,8 +65,24 @@ class User(UserMixin, db.Model):
 		digest = md5(self.email.lower().encode('utf-8')).hexdigest()
 		return 'https://www.gravatar.com/avatar/{}?d=identicon&s={}'.format(digest, size)
 
-	def __repr__(self):
-		return '<User {}>'.format(self.username)
+	def get_reset_password_token(self, expires_in=600):
+		return jwt.encode(
+			{'reset_password': self.id, 'exp':time() + expires_in
+			},
+			app.config['SECRET_KEY'], algorithm='HS256'
+			).decode('utf-8')
+
+	@staticmethod
+	def verify_reset_password_token(token):
+		
+		try:
+			id = jwt.decode(toke, app.config['SECRET_KEY'], algorithms=['HS256'])['reset_password']
+		except:
+			return
+
+		return User.query.get(id)
+
+
 
 
 class Post(db.Model):
